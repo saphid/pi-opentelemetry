@@ -181,5 +181,6 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): TelemetryConfig
       headers: parseKeyValuePairs(readEnv(env, "OTEL_EXPORTER_OTLP_HEADERS")),
       exportIntervalMs: asInt(readEnv(env, "OTEL_METRIC_EXPORT_INTERVAL"), 60_000),
     },
+    localLogPath: readEnv(env, "OTEL_LOCAL_LOG") ?? readEnv(env, "PI_OTEL_LOCAL_LOG"),
   };
 }

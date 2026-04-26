@@ -25,6 +25,7 @@ export interface TelemetryConfig {
     headers: Record<string, string>;
     exportIntervalMs: number;
   };
+  localLogPath?: string;
 }
 
 export interface DurationStats {

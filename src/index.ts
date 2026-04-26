@@ -6,10 +6,12 @@ import type {
 import { getConfig } from "./config.js";
 import { buildTraceUrl, openTraceUrl } from "./diagnostics/open-trace-command.js";
 import { formatOtelStatus } from "./diagnostics/status-command.js";
+import { createLocalLogSink } from "./local-log.js";
 import { createMetricsCollector } from "./metrics/collector.js";
 import { createMetricsRuntime } from "./metrics/provider.js";
 import { createPayloadPolicy } from "./privacy/payload-policy.js";
 import { createRedactor } from "./privacy/redactor.js";
+import { discoverPackages, mapToolSource, mapToolSources } from "./resource-discovery.js";
 import { createSpanManager } from "./trace/span-manager.js";
 import { createTraceRuntime } from "./trace/provider.js";
 import type { AssistantUsage, TelemetryStatus } from "./types.js";
@@ -72,12 +74,19 @@ function notifyOrMessage(pi: ExtensionAPI, ctx: ExtensionCommandContext, message
   });
 }
 
-function appendTelemetryEntry<T>(pi: ExtensionAPI, customType: string, data: T, onError: (error: unknown) => void): void {
+function appendTelemetryEntry<T>(
+  pi: ExtensionAPI,
+  customType: string,
+  data: T,
+  onError: (error: unknown) => void,
+  localLog?: { write(customType: string, data: unknown): void },
+): void {
   try {
     pi.appendEntry(customType, data);
   } catch (error) {
     onError(error);
   }
+  localLog?.write(customType, data);
 }
 
 export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
@@ -100,6 +109,7 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
     collector.setLastError(lastError);
   };
 
+  const localLog = createLocalLogSink(config.localLogPath, onRuntimeError);
   const metricsRuntime = config.enabled ? createMetricsRuntime(config, onRuntimeError) : undefined;
   const traceRuntime = config.enabled ? createTraceRuntime(config, onRuntimeError) : undefined;
 
@@ -223,10 +233,16 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
         timestamp: new Date().toISOString(),
         provider: ctx.model ? String(ctx.model.provider) : undefined,
         model: ctx.model?.id,
-        activeTools: pi.getActiveTools(),
-        allTools: pi.getAllTools().map((tool) => ({ name: tool.name, description: tool.description })),
+        packages: discoverPackages(ctx.cwd),
+        activeTools: mapToolSources(pi.getActiveTools()),
+        allTools: pi.getAllTools().map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          sourcePackage: mapToolSource(tool.name) ?? "unknown",
+        })),
       },
       onRuntimeError,
+      localLog,
     );
     updateTraceId();
 
@@ -294,11 +310,13 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
         kind: "tool",
         event: "call",
         name: event.toolName,
+        sourcePackage: mapToolSource(event.toolName) ?? "unknown",
         toolCallId: event.toolCallId,
         turnIndex: currentTurnIndex,
         timestamp: new Date().toISOString(),
       },
       onRuntimeError,
+      localLog,
     );
 
     spanManager?.onToolCall({
@@ -347,6 +365,7 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
         timestamp: new Date().toISOString(),
       },
       onRuntimeError,
+      localLog,
     );
   });
 
