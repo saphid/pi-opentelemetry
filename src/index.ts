@@ -303,6 +303,8 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
       toolName: event.toolName,
     });
 
+    const sourcePackage = mapToolSource(event.toolName) ?? "unknown";
+    collector.recordResourceUsage({ kind: "tool", event: "call", name: event.toolName, sourcePackage });
     appendTelemetryEntry(
       pi,
       CUSTOM_RESOURCE_USAGE_TYPE,
@@ -310,7 +312,7 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
         kind: "tool",
         event: "call",
         name: event.toolName,
-        sourcePackage: mapToolSource(event.toolName) ?? "unknown",
+        sourcePackage,
         toolCallId: event.toolCallId,
         turnIndex: currentTurnIndex,
         timestamp: new Date().toISOString(),
@@ -354,6 +356,7 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
     const assistantEvent = event.assistantMessageEvent;
     if (assistantEvent.type !== "thinking_start" && assistantEvent.type !== "thinking_end") return;
 
+    collector.recordResourceUsage({ kind: "assistant_message_event", event: assistantEvent.type, name: "thinking", sourcePackage: "pi-thinking-steps" });
     appendTelemetryEntry(
       pi,
       CUSTOM_RESOURCE_USAGE_TYPE,
@@ -361,6 +364,7 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
         kind: "assistant_message_event",
         event: assistantEvent.type,
         name: "thinking",
+        sourcePackage: "pi-thinking-steps",
         contentIndex: assistantEvent.contentIndex,
         timestamp: new Date().toISOString(),
       },

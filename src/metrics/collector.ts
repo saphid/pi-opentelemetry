@@ -19,6 +19,13 @@ interface PromptArgs {
   promptLength: number;
 }
 
+interface ResourceUsageArgs {
+  kind: string;
+  name: string;
+  event: string;
+  sourcePackage?: string;
+}
+
 interface Counters {
   session?: Counter;
   turn?: Counter;
@@ -27,6 +34,7 @@ interface Counters {
   prompt?: Counter;
   token?: Counter;
   cost?: Counter;
+  resourceUsage?: Counter;
 }
 
 interface Histograms {
@@ -104,6 +112,10 @@ export function createMetricsCollector(options: CollectorOptions = {}) {
         cost: options.meter.createCounter("pi.cost.usage", {
           description: "Cost usage",
           unit: "USD",
+        }),
+        resourceUsage: options.meter.createCounter("pi.resource_usage.count", {
+          description: "Resource usage events by package/kind/name/event",
+          unit: "1",
         }),
       }
     : {};
@@ -222,6 +234,16 @@ export function createMetricsCollector(options: CollectorOptions = {}) {
       const attrs = baseAttrs();
       counters.prompt?.add(1, attrs);
       histograms.promptLength?.record(args.promptLength, attrs);
+    },
+
+    recordResourceUsage(args: ResourceUsageArgs): void {
+      counters.resourceUsage?.add(1, {
+        ...baseAttrs(),
+        kind: args.kind,
+        name: args.name,
+        event: args.event,
+        "source.package": args.sourcePackage ?? "unknown",
+      });
     },
 
     recordUsage(usage: AssistantUsage): void {

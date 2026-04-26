@@ -115,6 +115,7 @@ describe("metrics collector", () => {
     collector.setProviderModel("anthropic", "claude-sonnet");
     collector.recordSessionStart();
     collector.recordPrompt({ promptLength: 10 });
+    collector.recordResourceUsage({ kind: "tool", name: "web_search", event: "call", sourcePackage: "pi-web-access" });
     collector.recordTurnStart();
     collector.recordToolCall({ toolCallId: "c1", toolName: "read" });
     collector.recordToolResult({ toolCallId: "c1", toolName: "read", success: true });
@@ -130,5 +131,8 @@ describe("metrics collector", () => {
       expect(Object.keys(attrs)).not.toContain("session.id");
       expect(Object.keys(attrs)).not.toContain("prompt.length");
     }
+
+    const resourceAttrs = attrSets.find((attrs) => attrs.kind === "tool" && attrs.name === "web_search");
+    expect(resourceAttrs).toMatchObject({ event: "call", "source.package": "pi-web-access" });
   });
 });
