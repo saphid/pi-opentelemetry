@@ -91,9 +91,27 @@ describe("span manager", () => {
     const traceId = manager.getTraceId();
     expect(traceId).toBe("trace-123");
 
-    const toolSpan = tracer.spans.find((span) => span.name.includes("pi.tool: bash"));
+    const toolSpan = tracer.spans.find((span) => span.name === "pi.tool: bash");
     expect(toolSpan).toBeTruthy();
     expect(toolSpan?.ended).toBe(true);
+    expect(toolSpan?.name).not.toContain("echo hello");
+  });
+
+  it("keeps raw input out of session and tool span names", () => {
+    const tracer = new FakeTracer();
+    const policy = createPayloadPolicy({
+      profile: "detailed-with-redaction",
+      payloadMaxBytes: 1024,
+      redactor: createRedactor({ extraSensitiveKeys: [], pathDenylist: [] }),
+    });
+
+    const manager = createSpanManager({ tracer: tracer as never, payloadPolicy: policy });
+
+    manager.onSessionStart({ sessionId: "session-1" });
+    manager.onInput({ text: "OPENAI_API_KEY=sk-supersecret12345 please fix", source: "user" });
+    manager.onToolCall({ toolCallId: "tool-secret", toolName: "bash", input: { command: "curl ?token=abc123" } });
+
+    expect(tracer.spans.map((span) => span.name)).toEqual(["pi.session", "pi.tool: bash"]);
   });
 
   it("marks tool span as error when tool_result is error", () => {

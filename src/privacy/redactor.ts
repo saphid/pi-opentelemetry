@@ -11,17 +11,22 @@ const DEFAULT_SENSITIVE_KEYS = [
 
 const REDACTED = "[redacted]";
 
-const DEFAULT_VALUE_PATTERNS = [
-  /(^|\s)bearer\s+[a-z0-9\-_.=:+/]+/i,
+const WHOLE_VALUE_PATTERNS = [
   /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
-  /^sk-[a-z0-9\-_]+$/i,
   /^(?:[A-Za-z0-9+/]{40,}={0,2})$/,
+];
+
+const EMBEDDED_VALUE_PATTERNS = [
+  { pattern: /bearer\s+[a-z0-9\-_.=:+/]+/gi, replacement: REDACTED },
+  { pattern: /\b(?:sk|pk)-[a-z0-9\-_]{8,}\b/gi, replacement: REDACTED },
+  { pattern: /\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|API[_-]?KEY)[A-Z0-9_]*=)([^&\s'"`]+)/gi, replacement: `$1${REDACTED}` },
+  { pattern: /([?&](?:token|api_key|apikey|key|secret|password|auth)=)([^&#\s'"`]+)/gi, replacement: `$1${REDACTED}` },
 ];
 
 function wildcardToRegExp(pattern: string): RegExp {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-  return new RegExp(`^${escaped}$`, "i");
+  return new RegExp(`(^|/)${escaped}$`, "i");
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -48,7 +53,15 @@ export function createRedactor(options: RedactorOptions): Redactor {
 
   const matchesSensitiveKey = (key: string) => keyPatterns.some((pattern) => pattern.test(key));
 
-  const matchesSensitiveValue = (value: string) => DEFAULT_VALUE_PATTERNS.some((pattern) => pattern.test(value));
+  const matchesSensitiveValue = (value: string) => WHOLE_VALUE_PATTERNS.some((pattern) => pattern.test(value));
+
+  const redactSensitiveSubstrings = (value: string): string => {
+    let output = value;
+    for (const { pattern, replacement } of EMBEDDED_VALUE_PATTERNS) {
+      output = output.replace(pattern, replacement);
+    }
+    return output;
+  };
 
   const redactRecursive = (value: unknown): unknown => {
     if (Array.isArray(value)) {
@@ -67,8 +80,9 @@ export function createRedactor(options: RedactorOptions): Redactor {
       return output;
     }
 
-    if (typeof value === "string" && matchesSensitiveValue(value.trim())) {
-      return REDACTED;
+    if (typeof value === "string") {
+      if (matchesSensitiveValue(value.trim())) return REDACTED;
+      return redactSensitiveSubstrings(value);
     }
 
     return value;

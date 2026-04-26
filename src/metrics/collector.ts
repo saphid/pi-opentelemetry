@@ -33,6 +33,7 @@ interface Histograms {
   session?: Histogram;
   turn?: Histogram;
   tool?: Histogram;
+  promptLength?: Histogram;
 }
 
 function durationTemplate() {
@@ -120,6 +121,10 @@ export function createMetricsCollector(options: CollectorOptions = {}) {
         tool: options.meter.createHistogram("pi.tool.duration", {
           description: "Tool duration",
           unit: "s",
+        }),
+        promptLength: options.meter.createHistogram("pi.prompt.length", {
+          description: "User prompt length",
+          unit: "characters",
         }),
       }
     : {};
@@ -214,10 +219,9 @@ export function createMetricsCollector(options: CollectorOptions = {}) {
 
     recordPrompt(args: PromptArgs): void {
       status.prompts += 1;
-      counters.prompt?.add(1, {
-        ...baseAttrs(),
-        "prompt.length": args.promptLength,
-      });
+      const attrs = baseAttrs();
+      counters.prompt?.add(1, attrs);
+      histograms.promptLength?.record(args.promptLength, attrs);
     },
 
     recordUsage(usage: AssistantUsage): void {

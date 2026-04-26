@@ -16,6 +16,8 @@ import type { AssistantUsage, TelemetryStatus } from "./types.js";
 
 const EXTENSION_STATUS_KEY = "pi-opentelemetry";
 const CUSTOM_STATUS_MESSAGE_TYPE = "pi-opentelemetry-status";
+const CUSTOM_RESOURCE_SNAPSHOT_TYPE = "pi-opentelemetry.resource_snapshot";
+const CUSTOM_RESOURCE_USAGE_TYPE = "pi-opentelemetry.resource_usage";
 
 function getSessionId(ctx: ExtensionContext): string {
   return "getSessionId" in ctx.sessionManager ? ctx.sessionManager.getSessionId() : "unknown";
@@ -70,6 +72,14 @@ function notifyOrMessage(pi: ExtensionAPI, ctx: ExtensionCommandContext, message
   });
 }
 
+function appendTelemetryEntry<T>(pi: ExtensionAPI, customType: string, data: T, onError: (error: unknown) => void): void {
+  try {
+    pi.appendEntry(customType, data);
+  } catch (error) {
+    onError(error);
+  }
+}
+
 export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
   const config = getConfig();
   const redactor = createRedactor({
@@ -106,6 +116,12 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
         payloadPolicy,
       })
     : undefined;
+
+  let currentTurnIndex: number | undefined;
+
+  const resetTurnContext = (): void => {
+    currentTurnIndex = undefined;
+  };
 
   const updateModel = (ctx: ExtensionContext): void => {
     const model = ctx.model;
@@ -194,10 +210,24 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
 
     updateModel(ctx);
     collector.recordSessionStart();
+    const sessionId = getSessionId(ctx);
     spanManager?.onSessionStart({
-      sessionId: getSessionId(ctx),
+      sessionId,
       sessionFile: getSessionFile(ctx),
     });
+    appendTelemetryEntry(
+      pi,
+      CUSTOM_RESOURCE_SNAPSHOT_TYPE,
+      {
+        sessionId,
+        timestamp: new Date().toISOString(),
+        provider: ctx.model ? String(ctx.model.provider) : undefined,
+        model: ctx.model?.id,
+        activeTools: pi.getActiveTools(),
+        allTools: pi.getAllTools().map((tool) => ({ name: tool.name, description: tool.description })),
+      },
+      onRuntimeError,
+    );
     updateTraceId();
 
     if (ctx.hasUI) {
@@ -210,6 +240,7 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
 
     collector.recordSessionEnd();
     spanManager?.shutdown();
+    resetTurnContext();
 
     updateModel(ctx);
     collector.recordSessionStart();
@@ -240,6 +271,7 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
   pi.on("turn_start", async (event) => {
     if (!config.enabled) return;
 
+    currentTurnIndex = event.turnIndex;
     collector.recordTurnStart();
     spanManager?.onTurnStart({
       turnIndex: event.turnIndex,
@@ -255,11 +287,25 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
       toolName: event.toolName,
     });
 
+    appendTelemetryEntry(
+      pi,
+      CUSTOM_RESOURCE_USAGE_TYPE,
+      {
+        kind: "tool",
+        event: "call",
+        name: event.toolName,
+        toolCallId: event.toolCallId,
+        turnIndex: currentTurnIndex,
+        timestamp: new Date().toISOString(),
+      },
+      onRuntimeError,
+    );
+
     spanManager?.onToolCall({
       toolCallId: event.toolCallId,
       toolName: event.toolName,
       input: event.input,
-      turnIndex: undefined,
+      turnIndex: currentTurnIndex,
     });
   });
 
@@ -280,8 +326,28 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
         content: event.content,
         details: event.details,
       },
-      turnIndex: undefined,
+      turnIndex: currentTurnIndex,
     });
+  });
+
+  pi.on("message_update", async (event) => {
+    if (!config.enabled) return;
+    if (event.message.role !== "assistant") return;
+    const assistantEvent = event.assistantMessageEvent;
+    if (assistantEvent.type !== "thinking_start" && assistantEvent.type !== "thinking_end") return;
+
+    appendTelemetryEntry(
+      pi,
+      CUSTOM_RESOURCE_USAGE_TYPE,
+      {
+        kind: "assistant_message_event",
+        event: assistantEvent.type,
+        name: "thinking",
+        contentIndex: assistantEvent.contentIndex,
+        timestamp: new Date().toISOString(),
+      },
+      onRuntimeError,
+    );
   });
 
   pi.on("turn_end", async (event) => {
@@ -304,6 +370,7 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
       toolResults: event.toolResults.length,
       stopReason,
     });
+    if (currentTurnIndex === event.turnIndex) resetTurnContext();
   });
 
   pi.on("agent_end", async (event) => {
@@ -353,6 +420,7 @@ export default function piOpenTelemetryExtension(pi: ExtensionAPI): void {
 
     collector.recordSessionEnd();
     spanManager?.shutdown();
+    resetTurnContext();
     updateTraceId();
     await shutdownRuntimes();
 

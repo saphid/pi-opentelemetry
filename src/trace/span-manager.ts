@@ -38,16 +38,6 @@ interface SpanManagerOptions {
   now?: () => number;
 }
 
-function normalizeText(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function previewText(value: string, maxChars: number): string {
-  const normalized = normalizeText(value);
-  if (normalized.length <= maxChars) return normalized;
-  return `${normalized.slice(0, maxChars)}…`;
-}
-
 function extractPath(input: unknown): string | undefined {
   if (!input || typeof input !== "object") return undefined;
   const path = (input as Record<string, unknown>).path;
@@ -60,17 +50,8 @@ function extractBashCommand(input: unknown): string | undefined {
   return typeof command === "string" ? command : undefined;
 }
 
-function buildToolSpanName(toolName: string, input: unknown): string {
-  if (toolName !== "bash") {
-    return `pi.tool: ${toolName}`;
-  }
-
-  const command = extractBashCommand(input);
-  if (!command) {
-    return `pi.tool: ${toolName}`;
-  }
-
-  return `pi.tool: ${toolName}(${previewText(command, 120)})`;
+function buildToolSpanName(toolName: string): string {
+  return `pi.tool: ${toolName}`;
 }
 
 export function createSpanManager(options: SpanManagerOptions) {
@@ -156,10 +137,6 @@ export function createSpanManager(options: SpanManagerOptions) {
         ...options.payloadPolicy.toAttributes("pi.input", sanitized),
       });
 
-      const namePreview = previewText(args.text, 50);
-      if (namePreview) {
-        sessionSpan.updateName(`pi.session ${namePreview}`);
-      }
     },
 
     onAgentStart(): void {
@@ -217,7 +194,7 @@ export function createSpanManager(options: SpanManagerOptions) {
       if (!parent) return;
 
       const parentCtx = trace.setSpan(context.active(), parent);
-      const span = options.tracer.startSpan(buildToolSpanName(args.toolName, args.input), { startTime: now() }, parentCtx);
+      const span = options.tracer.startSpan(buildToolSpanName(args.toolName), { startTime: now() }, parentCtx);
 
       span.setAttribute("pi.tool.name", args.toolName);
       span.setAttribute("pi.tool.call_id", args.toolCallId);

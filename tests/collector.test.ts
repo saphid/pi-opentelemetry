@@ -128,6 +128,7 @@ describe("metrics collector", () => {
 
     for (const attrs of attrSets) {
       expect(Object.keys(attrs)).not.toContain("session.id");
+      expect(Object.keys(attrs)).not.toContain("prompt.length");
     }
   });
 });

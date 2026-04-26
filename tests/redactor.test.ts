@@ -45,6 +45,14 @@ describe("redactor", () => {
     });
   });
 
+  it("masks embedded secret substrings", () => {
+    const redactor = createRedactor({ extraSensitiveKeys: [], pathDenylist: [] });
+
+    expect(redactor.redact("OPENAI_API_KEY=sk-test-123456789 npm test")).toBe("OPENAI_API_KEY=[redacted] npm test");
+    expect(redactor.redact("curl 'https://example.com?token=abc123&ok=1'")).toBe("curl 'https://example.com?token=[redacted]&ok=1'");
+    expect(redactor.redact("Authorization: Bearer abcdef12345")).toBe("Authorization: [redacted]");
+  });
+
   it("extends sensitive key list", () => {
     const redactor = createRedactor({
       extraSensitiveKeys: ["refreshToken"],
