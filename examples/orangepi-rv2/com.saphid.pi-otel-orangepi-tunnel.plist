@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.saphid.pi-otel-orangepi-tunnel</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/ssh</string>
+    <string>-N</string>
+    <string>-o</string>
+    <string>ExitOnForwardFailure=yes</string>
+    <string>-o</string>
+    <string>ServerAliveInterval=30</string>
+    <string>-o</string>
+    <string>ServerAliveCountMax=3</string>
+    <string>-L</string>
+    <string>4318:127.0.0.1:4318</string>
+    <string>-L</string>
+    <string>8889:127.0.0.1:8889</string>
+    <string>orangepi@192.168.1.30</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/tmp/pi-otel-orangepi-tunnel.out</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/pi-otel-orangepi-tunnel.err</string>
+</dict>
+</plist>

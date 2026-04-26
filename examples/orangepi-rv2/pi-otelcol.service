@@ -1,0 +1,11 @@
+[Unit]
+Description=Pi OpenTelemetry Collector
+After=network-online.target
+
+[Service]
+ExecStart=%h/bin/otelcol-contrib --config=%h/.config/otelcol/config.yaml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

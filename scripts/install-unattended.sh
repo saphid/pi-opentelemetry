@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ORANGE_PI_ENDPOINT="${ORANGE_PI_ENDPOINT:-http://192.168.1.30:4318}"
+ORANGE_PI_ENDPOINT="${ORANGE_PI_ENDPOINT:-http://127.0.0.1:4318}"
 ORANGE_PI_TRACE_UI="${ORANGE_PI_TRACE_UI:-http://192.168.1.30:16686/trace}"
 LOCAL_LOG="${PI_OTEL_LOCAL_LOG:-$HOME/.local/share/pi-opentelemetry/events.jsonl}"
 SETTINGS="$HOME/.pi/agent/settings.json"
