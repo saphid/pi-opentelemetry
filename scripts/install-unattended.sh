@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ORANGE_PI_ENDPOINT="${ORANGE_PI_ENDPOINT:-http://127.0.0.1:4318}"
-ORANGE_PI_TRACE_UI="${ORANGE_PI_TRACE_UI:-http://192.168.1.30:16686/trace}"
+ORANGE_PI_HOST="${ORANGE_PI_HOST:-orange-pi.local}"
+ORANGE_PI_TRACE_UI="${ORANGE_PI_TRACE_UI:-http://${ORANGE_PI_HOST}:16686/trace}"
 LOCAL_LOG="${PI_OTEL_LOCAL_LOG:-$HOME/.local/share/pi-opentelemetry/events.jsonl}"
 SETTINGS="$HOME/.pi/agent/settings.json"
 ENV_FILE="$HOME/.config/pi/telemetry.env"
