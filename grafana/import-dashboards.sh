@@ -3,7 +3,7 @@ set -euo pipefail
 
 GRAFANA_URL="${GRAFANA_URL:-http://127.0.0.1:3000}"
 GRAFANA_USER="${GRAFANA_USER:-admin}"
-DASHBOARD_DIR="${DASHBOARD_DIR:-/home/orangepi/pi-otel-dashboards}"
+DASHBOARD_DIR="${DASHBOARD_DIR:-$HOME/pi-otel-dashboards}"
 
 if [[ -z "${GRAFANA_PASSWORD:-}" ]]; then
   read -rsp "Grafana password for ${GRAFANA_USER}: " GRAFANA_PASSWORD
