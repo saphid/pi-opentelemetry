@@ -21,10 +21,11 @@ systemctl --user enable --now pi-otelcol.service
 On machines running Pi:
 
 ```bash
-ssh -N -L 4318:127.0.0.1:4318 -L 8889:127.0.0.1:8889 orangepi@192.168.1.30
+export ORANGE_PI_HOST=orange-pi.local
+ssh -N -L 4318:127.0.0.1:4318 -L 8889:127.0.0.1:8889 "orangepi@${ORANGE_PI_HOST}"
 
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
-export OTEL_TRACE_UI_BASE_URL=http://192.168.1.30:16686/trace
+export OTEL_TRACE_UI_BASE_URL="http://${ORANGE_PI_HOST}:16686/trace"
 export PI_OTEL_LOCAL_LOG=~/.local/share/pi-opentelemetry/events.jsonl
 ```
 
