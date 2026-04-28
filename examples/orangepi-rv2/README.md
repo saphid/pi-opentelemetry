@@ -18,11 +18,19 @@ systemctl --user enable --now pi-otelcol.service
 
 ## Point Pi at it
 
-On machines running Pi:
+On machines running Pi, set a host alias first if you want to use the launchd plist:
+
+```sshconfig
+Host pi-otel-target
+  HostName orange-pi.local
+  User your-ssh-user
+```
+
+For an ad hoc tunnel:
 
 ```bash
 export ORANGE_PI_HOST=orange-pi.local
-ssh -N -L 4318:127.0.0.1:4318 -L 8889:127.0.0.1:8889 "orangepi@${ORANGE_PI_HOST}"
+ssh -N -L 4318:127.0.0.1:4318 -L 8889:127.0.0.1:8889 "${ORANGE_PI_USER:-your-ssh-user}@${ORANGE_PI_HOST}"
 
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
 export OTEL_TRACE_UI_BASE_URL="http://${ORANGE_PI_HOST}:16686/trace"

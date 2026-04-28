@@ -18,7 +18,7 @@
     <string>4318:127.0.0.1:4318</string>
     <string>-L</string>
     <string>8889:127.0.0.1:8889</string>
-    <string>orangepi@orange-pi.local</string>
+    <string>pi-otel-target</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
